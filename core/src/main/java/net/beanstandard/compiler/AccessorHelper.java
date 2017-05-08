@@ -3,6 +3,7 @@ package net.beanstandard.compiler;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
@@ -30,15 +31,17 @@ final class AccessorHelper {
     if (!sourceClassElement.getTypeParameters().isEmpty()) {
       throw new ValidationException("Type parameters not allowed here", sourceClassElement);
     }
-    if (!sourceClassElement.getModifiers().contains(Modifier.PRIVATE)) {
+    if (sourceClassElement.getModifiers().contains(Modifier.PRIVATE)) {
       throw new ValidationException("The class may not be private", sourceClassElement);
     }
-    if (!sourceClassElement.getModifiers().contains(Modifier.ABSTRACT)) {
+    if (sourceClassElement.getModifiers().contains(Modifier.ABSTRACT)) {
       throw new ValidationException("The class may not be abstract", sourceClassElement);
     }
     if (sourceClassElement.getEnclosingElement() != null &&
+        sourceClassElement.getEnclosingElement().getKind() == ElementKind.CLASS &&
         !sourceClassElement.getModifiers().contains(Modifier.STATIC)) {
-      throw new ValidationException("The inner class must be static", sourceClassElement);
+      throw new ValidationException("The inner class must be static " +
+          sourceClassElement.getEnclosingElement(), sourceClassElement);
     }
     Map<SetterSignature, ExecutableElement> setters = setters(sourceClassElement);
     return getters(sourceClassElement, setters);
