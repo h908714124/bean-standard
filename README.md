@@ -4,7 +4,7 @@
 
 This project generates he builder pattern, specifically for classes that have 
 a <i>default constructor</i> and <i>accessor pairs</i>. These are known as JavaBeans or POJOs.
-bean-standard is supposed to generate exactly the same
+The processor is supposed to generate roughly the same
 builder API as [auto-builder](https://github.com/h908714124/auto-builder).
 
 Builders for beans can be a useful tool in defensive programming.
@@ -27,7 +27,7 @@ class Animal {
 }
 ````
 
-A class `Animal_Builders` will be generated in the same package.
+A class `Animal_Builder.java` will be generated in the same package.
 A builder instance can be obtained from one of the three generated static methods:
 
 * `Animal_Builders.builder()` to obtain an empty builder.
