@@ -1,19 +1,20 @@
 package net.beanstandard.compiler;
 
+import com.squareup.javapoet.ParameterizedTypeName;
+import com.squareup.javapoet.TypeName;
+
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.type.TypeKind;
+import java.util.List;
+import java.util.Optional;
+
 import static java.lang.Character.isLowerCase;
 import static java.lang.Character.toLowerCase;
 import static java.util.Objects.requireNonNull;
-import static net.beanstandard.compiler.AccessorHelper.GETTER_PATTERN;
-import static net.beanstandard.compiler.AccessorHelper.IS_PATTERN;
-import static net.beanstandard.compiler.AccessorHelper.SETTER_PATTERN;
+import static net.beanstandard.compiler.MethodScanner.GETTER_PATTERN;
+import static net.beanstandard.compiler.MethodScanner.IS_PATTERN;
+import static net.beanstandard.compiler.MethodScanner.SETTER_PATTERN;
 import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
-
-import com.squareup.javapoet.ParameterizedTypeName;
-import com.squareup.javapoet.TypeName;
-import java.util.List;
-import java.util.Optional;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.type.TypeKind;
 
 final class AccessorPair {
 
@@ -102,5 +103,16 @@ final class AccessorPair {
       return Optional.empty();
     }
     return Optional.of(setter.getSimpleName().toString());
+  }
+
+  TypeName wrappedType() {
+    if (!(propertyType instanceof ParameterizedTypeName)) {
+      throw new AssertionError();
+    }
+    ParameterizedTypeName realType = (ParameterizedTypeName) this.propertyType;
+    if (realType.typeArguments.size() != 1) {
+      throw new AssertionError();
+    }
+    return realType.typeArguments.get(0);
   }
 }

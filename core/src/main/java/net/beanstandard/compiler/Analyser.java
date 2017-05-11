@@ -1,18 +1,19 @@
 package net.beanstandard.compiler;
 
-import static javax.lang.model.element.Modifier.ABSTRACT;
-import static javax.lang.model.element.Modifier.PRIVATE;
-import static javax.lang.model.element.Modifier.STATIC;
-import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
-
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeSpec;
-import java.util.Arrays;
+
 import javax.annotation.Generated;
+import java.util.Arrays;
+
+import static javax.lang.model.element.Modifier.ABSTRACT;
+import static javax.lang.model.element.Modifier.PRIVATE;
+import static javax.lang.model.element.Modifier.STATIC;
+import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
 
 final class Analyser {
 
@@ -68,12 +69,10 @@ final class Analyser {
     if (setterName != null) {
       block.addStatement("this.$N.$L($N)", beanField, setterName, p);
     } else {
-      ParameterSpec var = ParameterSpec.builder(accessorPair.propertyType,
-          accessorPair.propertyName).build();
-      block.beginControlFlow("for ($T $N : $N)", var.type, var, p)
-          .addStatement("this.$N.$N().add($N)", beanField,
-              accessorPair.getterName(), var)
-          .endControlFlow();
+      block.addStatement("this.$N.$L().clear()", beanField,
+          accessorPair.getterName())
+          .addStatement("this.$N.$L().addAll($N)", beanField,
+              accessorPair.getterName(), p);
     }
     return MethodSpec.methodBuilder(accessorPair.propertyName)
         .addCode(block.build())

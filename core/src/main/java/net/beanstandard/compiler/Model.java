@@ -31,7 +31,7 @@ final class Model {
                 ClassName refTrackingBuilderClass) {
     this.generatedClass = generatedClass;
     this.sourceClassElement = sourceClassElement;
-    this.accessorPairs = AccessorHelper.scan(sourceClassElement);
+    this.accessorPairs = MethodScanner.scan(sourceClassElement);
     this.simpleBuilderClass = simpleBuilderClass;
     this.refTrackingBuilderClass = refTrackingBuilderClass;
   }

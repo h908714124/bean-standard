@@ -1,23 +1,24 @@
 package net.beanstandard.compiler;
 
-import static java.util.stream.Collectors.groupingBy;
-import static javax.lang.model.util.ElementFilter.methodsIn;
-import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
-
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
+
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeKind;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 
-final class AccessorHelper {
+import static java.util.stream.Collectors.groupingBy;
+import static net.beanstandard.compiler.Arity0.parameterlessMethods;
+import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
+
+final class MethodScanner {
 
   static final Pattern GETTER_PATTERN =
       Pattern.compile("^get[A-Z].*$");
@@ -42,20 +43,22 @@ final class AccessorHelper {
       throw new ValidationException("The inner class must be static " +
           sourceClassElement.getEnclosingElement(), sourceClassElement);
     }
-    Map<SetterSignature, ExecutableElement> setters = setters(sourceClassElement);
-    if (setters.isEmpty()) {
-      throw new ValidationException("no setters", sourceClassElement);
-    }
-    List<AccessorPair> getters = getters(sourceClassElement, setters);
-    if (getters.isEmpty()) {
-      throw new ValidationException("no getters", sourceClassElement);
-    }
-
-    return getters;
+    return getters(sourceClassElement,
+        setters(sourceClassElement));
   }
 
   private static ExecutableElement matchingSetter(ExecutableElement getter,
                                                   Map<SetterSignature, ExecutableElement> setters) {
+    if (!getter.getParameters().isEmpty() ||
+        getter.getReturnType().getKind() == TypeKind.VOID) {
+      throw new AssertionError();
+    }
+    String truncatedGetterName = truncatedGetterName(getter);
+    return setters.get(SetterSignature.ofSetter("set" +
+        truncatedGetterName, getter.getReturnType()));
+  }
+
+  private static String truncatedGetterName(ExecutableElement getter) {
     String getterName = getter.getSimpleName().toString();
     String truncatedGetterName;
     if (GETTER_PATTERN.matcher(getterName).matches()) {
@@ -66,17 +69,12 @@ final class AccessorHelper {
     } else {
       throw new AssertionError();
     }
-    if (!getter.getParameters().isEmpty() ||
-        getter.getReturnType().getKind() == TypeKind.VOID) {
-      throw new AssertionError();
-    }
-    return setters.get(SetterSignature.ofSetter("set" + truncatedGetterName,
-        getter.getReturnType()));
+    return truncatedGetterName;
   }
 
   private static Map<SetterSignature, ExecutableElement> setters(TypeElement sourceTypeElement) {
     Map<SetterSignature, ExecutableElement> result = new HashMap<>();
-    methodsIn(sourceTypeElement.getEnclosedElements()).stream()
+    Arity1.singleParameterMethodsReturningVoid(sourceTypeElement).stream()
         .filter(m -> m.getParameters().size() == 1)
         .filter(m -> m.getReturnType().getKind() == TypeKind.VOID)
         .filter(m -> SETTER_PATTERN.matcher(m.getSimpleName().toString()).matches())
@@ -90,7 +88,7 @@ final class AccessorHelper {
   private static List<AccessorPair> getters(TypeElement sourceTypeElement,
                                             Map<SetterSignature, ExecutableElement> setters) {
     List<AccessorPair> result = new ArrayList<>();
-    methodsIn(sourceTypeElement.getEnclosedElements()).stream()
+    parameterlessMethods(sourceTypeElement).stream()
         .filter(m -> m.getParameters().isEmpty())
         .filter(m -> m.getReturnType().getKind() != TypeKind.VOID)
         .filter(m -> GETTER_PATTERN.matcher(m.getSimpleName().toString()).matches() ||
