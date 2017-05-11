@@ -11,6 +11,7 @@ import javax.annotation.Generated;
 import java.util.Arrays;
 
 import static javax.lang.model.element.Modifier.ABSTRACT;
+import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
 import static javax.lang.model.element.Modifier.STATIC;
 import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
@@ -78,6 +79,8 @@ final class Analyser {
         .addCode(block.build())
         .addStatement("return this")
         .addParameter(p)
+        .addModifiers(model.maybePublic())
+        .addModifiers(FINAL)
         .returns(model.generatedClass)
         .build();
   }
