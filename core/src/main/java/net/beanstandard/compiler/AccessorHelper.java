@@ -1,22 +1,21 @@
 package net.beanstandard.compiler;
 
+import static java.util.stream.Collectors.groupingBy;
+import static javax.lang.model.util.ElementFilter.methodsIn;
+import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
+
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
-
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeKind;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
-
-import static java.util.stream.Collectors.groupingBy;
-import static javax.lang.model.util.ElementFilter.methodsIn;
-import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeKind;
 
 final class AccessorHelper {
 
@@ -44,7 +43,15 @@ final class AccessorHelper {
           sourceClassElement.getEnclosingElement(), sourceClassElement);
     }
     Map<SetterSignature, ExecutableElement> setters = setters(sourceClassElement);
-    return getters(sourceClassElement, setters);
+    if (setters.isEmpty()) {
+      throw new ValidationException("no setters", sourceClassElement);
+    }
+    List<AccessorPair> getters = getters(sourceClassElement, setters);
+    if (getters.isEmpty()) {
+      throw new ValidationException("no getters", sourceClassElement);
+    }
+
+    return getters;
   }
 
   private static ExecutableElement matchingSetter(ExecutableElement getter,
@@ -71,7 +78,7 @@ final class AccessorHelper {
     Map<SetterSignature, ExecutableElement> result = new HashMap<>();
     methodsIn(sourceTypeElement.getEnclosedElements()).stream()
         .filter(m -> m.getParameters().size() == 1)
-        .filter(m -> TypeName.VOID.equals(m.getReturnType()))
+        .filter(m -> m.getReturnType().getKind() == TypeKind.VOID)
         .filter(m -> SETTER_PATTERN.matcher(m.getSimpleName().toString()).matches())
         .collect(groupingBy(m -> m.getSimpleName().toString()))
         .forEach((name, executableElements) -> executableElements.forEach(executableElement -> {
