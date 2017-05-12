@@ -2,6 +2,7 @@ package net.beanstandard.compiler;
 
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeMirror;
+import java.util.Objects;
 
 final class SetterSignature {
 
@@ -23,18 +24,16 @@ final class SetterSignature {
   }
 
   @Override
-  public boolean equals(Object other) {
-    if (this == other) return true;
-    if (other == null || getClass() != other.getClass()) return false;
-    SetterSignature that = (SetterSignature) other;
-    return (setterName != null ? setterName.equals(that.setterName) : that.setterName == null) &&
-        (type != null ? type.equals(that.type) : that.type == null);
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    SetterSignature that = (SetterSignature) o;
+    return Objects.equals(setterName, that.setterName) &&
+        Objects.equals(type, that.type);
   }
 
   @Override
   public int hashCode() {
-    int result = setterName != null ? setterName.hashCode() : 0;
-    result = 31 * result + (type != null ? type.hashCode() : 0);
-    return result;
+    return Objects.hash(setterName, type);
   }
 }
