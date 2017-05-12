@@ -3,7 +3,7 @@ package net.beanstandard.examples;
 import net.beanstandard.BeanStandard;
 
 @BeanStandard
-final class PackagePinranha {
+final class PackagePiranha {
   private boolean foo;
 
   boolean isFoo() {
