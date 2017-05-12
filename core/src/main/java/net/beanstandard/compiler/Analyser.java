@@ -1,26 +1,23 @@
 package net.beanstandard.compiler;
 
+import static javax.lang.model.element.Modifier.FINAL;
+import static javax.lang.model.element.Modifier.PRIVATE;
+import static javax.lang.model.element.Modifier.STATIC;
+import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
+
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeSpec;
-
-import javax.annotation.Generated;
 import java.util.Arrays;
-
-import static javax.lang.model.element.Modifier.ABSTRACT;
-import static javax.lang.model.element.Modifier.FINAL;
-import static javax.lang.model.element.Modifier.PRIVATE;
-import static javax.lang.model.element.Modifier.STATIC;
-import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
+import javax.annotation.Generated;
 
 final class Analyser {
 
   private final Model model;
   private final MethodSpec initMethod;
-  private final RefTrackingBuilder refTrackingBuilder;
   private final FieldSpec beanField;
 
   private Analyser(Model model) {
@@ -28,8 +25,7 @@ final class Analyser {
     this.beanField = FieldSpec.builder(model.sourceClass(), "bean")
         .addModifiers(PRIVATE)
         .build();
-    this.initMethod = initMethod(model);
-    this.refTrackingBuilder = RefTrackingBuilder.create(model, beanField);
+    this.initMethod = initMethod(model, beanField);
   }
 
   static Analyser create(Model model) {
@@ -40,12 +36,10 @@ final class Analyser {
     TypeSpec.Builder builder = TypeSpec.classBuilder(rawType(model.generatedClass));
     builder.addMethod(builderMethod());
     builder.addMethod(builderMethodWithParam());
+    builder.addMethod(perThreadFactoryMethod());
     builder.addMethod(initMethod);
     builder.addMethod(buildMethod());
-    builder.addMethod(perThreadFactoryMethod(refTrackingBuilder));
-    builder.addType(SimpleBuilder.create(model).define());
-    builder.addType(refTrackingBuilder.define());
-    builder.addType(PerThreadFactory.create(model, initMethod, refTrackingBuilder)
+    builder.addType(PerThreadFactory.create(model, initMethod, beanField)
         .define());
     builder.addField(beanField);
     for (AccessorPair parameter : model.accessorPairs) {
@@ -54,9 +48,9 @@ final class Analyser {
       builder.addMethod(setterMethod(parameter, p));
     }
     return builder.addModifiers(model.maybePublic())
-        .addModifiers(ABSTRACT)
+        .addModifiers(FINAL)
         .addMethod(MethodSpec.constructorBuilder()
-            .addStatement("this.$N = new $T()", beanField, model.sourceClass())
+            .addModifiers(PRIVATE)
             .build())
         .addAnnotation(AnnotationSpec.builder(Generated.class)
             .addMember("value", "$S", BeanStandardProcessor.class.getCanonicalName())
@@ -80,15 +74,18 @@ final class Analyser {
         .addStatement("return this")
         .addParameter(p)
         .addModifiers(model.maybePublic())
-        .addModifiers(FINAL)
         .returns(model.generatedClass)
         .build();
   }
 
   private MethodSpec builderMethod() {
+    ParameterSpec builder = ParameterSpec.builder(model.generatedClass, "builder")
+        .build();
     return MethodSpec.methodBuilder("builder")
         .addModifiers(STATIC)
-        .addStatement("return new $T()", model.simpleBuilderClass)
+        .addStatement("$T $N = new $T()", builder.type, builder, model.generatedClass)
+        .addStatement("$N.$N = new $T()", builder, beanField, model.sourceClass())
+        .addStatement("return $N", builder)
         .returns(model.generatedClass)
         .build();
   }
@@ -97,7 +94,7 @@ final class Analyser {
     ParameterSpec builder = ParameterSpec.builder(model.generatedClass, "builder").build();
     ParameterSpec input = ParameterSpec.builder(model.sourceClass(), "input").build();
     CodeBlock.Builder block = CodeBlock.builder()
-        .addStatement("$T $N = new $T()", builder.type, builder, model.simpleBuilderClass)
+        .addStatement("$T $N = new $T()", builder.type, builder, model.generatedClass)
         .addStatement("$N($N, $N)", initMethod, builder, input)
         .addStatement("return $N", builder);
     return MethodSpec.methodBuilder("builder")
@@ -108,13 +105,13 @@ final class Analyser {
         .build();
   }
 
-  private static MethodSpec initMethod(Model model) {
+  private static MethodSpec initMethod(Model model, FieldSpec beanField) {
     ParameterSpec builder = ParameterSpec.builder(model.generatedClass, "builder").build();
     ParameterSpec input = ParameterSpec.builder(model.sourceClass(), "input").build();
     CodeBlock.Builder block = CodeBlock.builder();
-    block.beginControlFlow("if ($N == null)", input)
-        .addStatement("throw new $T($S)",
-            NullPointerException.class, "Null " + input.name)
+    block.beginControlFlow("if ($N.$N == null)", builder, beanField)
+        .addStatement("$N.$N = new $T()", builder, beanField,
+            model.sourceClass())
         .endControlFlow();
     for (AccessorPair accessorPair : model.accessorPairs) {
       block.addStatement("$N.$N($N.$L())", builder, accessorPair.propertyName,
@@ -128,19 +125,22 @@ final class Analyser {
   }
 
   private MethodSpec buildMethod() {
+    ParameterSpec result = ParameterSpec.builder(model.sourceClass(), "result").build();
     return MethodSpec.methodBuilder("build")
+        .addStatement("$T $N = this.$N", model.sourceClass(), result, beanField)
+        .addStatement("this.$N = null", beanField)
+        .addStatement("return $N", result)
         .returns(model.sourceClass())
-        .addStatement("return this.$N", beanField)
         .addModifiers(model.maybePublic())
         .build();
   }
 
-  private MethodSpec perThreadFactoryMethod(RefTrackingBuilder refTrackingBuilder) {
+  private MethodSpec perThreadFactoryMethod() {
     MethodSpec.Builder builder = MethodSpec.methodBuilder("perThreadFactory")
-        .returns(refTrackingBuilder.perThreadFactoryClass)
+        .returns(model.perThreadFactoryClass())
         .addModifiers(STATIC);
     return builder.addStatement("return new $T()",
-        refTrackingBuilder.perThreadFactoryClass)
+        model.perThreadFactoryClass())
         .build();
   }
 }

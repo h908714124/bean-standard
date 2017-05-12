@@ -15,7 +15,7 @@ public class PackagePinranhaTest {
     String classModifiers = Modifier.toString(
         PackagePinranha_Builder.class.getModifiers());
     assertThat(classModifiers, not(containsString("public")));
-    assertThat(classModifiers, containsString("abstract"));
+    assertThat(classModifiers, containsString("final"));
     String builderMethodModifiers = Modifier.toString(
         PackagePinranha_Builder.class.getDeclaredMethod("builder").getModifiers());
     assertThat(builderMethodModifiers, not(containsString("public")));
@@ -31,10 +31,14 @@ public class PackagePinranhaTest {
         PackagePinranha_Builder.class.getDeclaredMethod("foo", Boolean.TYPE)
             .getModifiers());
     assertThat(setterMethodModifiers, not(containsString("public")));
-    assertThat(setterMethodModifiers, containsString("final"));
+    assertThat(setterMethodModifiers, not(containsString("final")));
     String buildMethodModifiers = Modifier.toString(
         PackagePinranha_Builder.class.getDeclaredMethod("build")
             .getModifiers());
     assertThat(buildMethodModifiers, not(containsString("public")));
+    assertThat(Modifier.toString(PackagePinranha_Builder.PerThreadFactory.class
+        .getDeclaredConstructor().getModifiers()), containsString("private"));
+    assertThat(Modifier.toString(PackagePinranha_Builder.class
+        .getDeclaredConstructor().getModifiers()), containsString("private"));
   }
 }

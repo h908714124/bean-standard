@@ -15,7 +15,7 @@ public class PublicPenguinTest {
     String classModifiers = Modifier.toString(
         PublicPenguin_Builder.class.getModifiers());
     assertThat(classModifiers, containsString("public"));
-    assertThat(classModifiers, containsString("abstract"));
+    assertThat(classModifiers, containsString("final"));
     String builderMethodModifiers = Modifier.toString(
         PublicPenguin_Builder.class.getDeclaredMethod("builder").getModifiers());
     assertThat(builderMethodModifiers, not(containsString("public")));
@@ -32,10 +32,17 @@ public class PublicPenguinTest {
         PublicPenguin_Builder.class.getDeclaredMethod("foo", String.class)
             .getModifiers());
     assertThat(setterMethodModifiers, containsString("public"));
-    assertThat(setterMethodModifiers, containsString("final"));
+    assertThat(setterMethodModifiers, not(containsString("final")));
     String buildMethodModifiers = Modifier.toString(
         PublicPenguin_Builder.class.getDeclaredMethod("build")
             .getModifiers());
     assertThat(buildMethodModifiers, containsString("public"));
+    assertThat(Modifier.toString(PublicPenguin_Builder.class
+        .getDeclaredConstructor().getModifiers()), containsString("private"));
+    assertThat(Modifier.toString(PublicPenguin_Builder.PerThreadFactory.class
+        .getDeclaredConstructor().getModifiers()), containsString("private"));
+    assertThat(Modifier.toString(PublicPenguin_Builder.class
+        .getDeclaredConstructor().getModifiers()), containsString("private"));
+
   }
 }

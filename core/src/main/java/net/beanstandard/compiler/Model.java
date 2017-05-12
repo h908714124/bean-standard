@@ -1,17 +1,16 @@
 package net.beanstandard.compiler;
 
+import static javax.lang.model.element.Modifier.PRIVATE;
+import static javax.lang.model.element.Modifier.PUBLIC;
+import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
+
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
-
+import java.util.List;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
-import java.util.List;
-
-import static javax.lang.model.element.Modifier.PRIVATE;
-import static javax.lang.model.element.Modifier.PUBLIC;
-import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
 
 final class Model {
 
@@ -19,21 +18,16 @@ final class Model {
   private static final Modifier[] PUBLIC_MODIFIER = {PUBLIC};
   private static final Modifier[] NO_MODIFIERS = new Modifier[0];
 
+  private final TypeElement sourceClassElement;
+
   final TypeName generatedClass;
-  final TypeElement sourceClassElement;
   final List<AccessorPair> accessorPairs;
-  final ClassName simpleBuilderClass;
-  final ClassName refTrackingBuilderClass;
 
   private Model(TypeName generatedClass,
-                TypeElement sourceClassElement,
-                ClassName simpleBuilderClass,
-                ClassName refTrackingBuilderClass) {
+                TypeElement sourceClassElement) {
     this.generatedClass = generatedClass;
     this.sourceClassElement = sourceClassElement;
     this.accessorPairs = MethodScanner.scan(sourceClassElement);
-    this.simpleBuilderClass = simpleBuilderClass;
-    this.refTrackingBuilderClass = refTrackingBuilderClass;
   }
 
   static Model create(TypeElement sourceClassElement) {
@@ -46,12 +40,8 @@ final class Model {
           "Default constructor not found", sourceClassElement);
     }
     ClassName generatedClass = peer(TypeName.get(sourceClassElement.asType()));
-    ClassName simpleBuilderClass = generatedClass.nestedClass("SimpleBuilder");
-    ClassName refTrackingBuilderClass =
-        generatedClass.nestedClass("RefTrackingBuilder");
-
     return new Model(generatedClass,
-        sourceClassElement, simpleBuilderClass, refTrackingBuilderClass);
+        sourceClassElement);
   }
 
   private static ClassName peer(TypeName type) {
@@ -72,5 +62,9 @@ final class Model {
 
   ClassName sourceClass() {
     return rawType(TypeName.get(sourceClassElement.asType()));
+  }
+
+  ClassName perThreadFactoryClass() {
+    return rawType(generatedClass).nestedClass("PerThreadFactory");
   }
 }

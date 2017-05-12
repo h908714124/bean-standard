@@ -1,38 +1,39 @@
 package net.beanstandard.compiler;
 
+import static com.squareup.javapoet.MethodSpec.constructorBuilder;
+import static javax.lang.model.element.Modifier.FINAL;
+import static javax.lang.model.element.Modifier.PRIVATE;
+import static javax.lang.model.element.Modifier.STATIC;
+
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeSpec;
 
-import static com.squareup.javapoet.MethodSpec.constructorBuilder;
-import static javax.lang.model.element.Modifier.FINAL;
-import static javax.lang.model.element.Modifier.PRIVATE;
-import static javax.lang.model.element.Modifier.STATIC;
-
 final class PerThreadFactory {
 
   private final Model model;
   private final MethodSpec initMethod;
   private final FieldSpec builder;
-  private final RefTrackingBuilder refTrackingBuilder;
+  private final FieldSpec beanField;
 
-  private PerThreadFactory(Model model, MethodSpec initMethod, RefTrackingBuilder refTrackingBuilder) {
+  private PerThreadFactory(
+      Model model, MethodSpec initMethod, FieldSpec beanField) {
     this.model = model;
     this.initMethod = initMethod;
-    this.builder = FieldSpec.builder(refTrackingBuilder.refTrackingBuilderClass, "builder", PRIVATE)
+    this.builder = FieldSpec.builder(model.generatedClass, "builder", PRIVATE)
         .build();
-    this.refTrackingBuilder = refTrackingBuilder;
+    this.beanField = beanField;
   }
 
-  static PerThreadFactory create(Model model, MethodSpec initMethod,
-                                 RefTrackingBuilder refTrackingBuilder) {
-    return new PerThreadFactory(model, initMethod, refTrackingBuilder);
+  static PerThreadFactory create(
+      Model model, MethodSpec initMethod, FieldSpec beanField) {
+    return new PerThreadFactory(model, initMethod, beanField);
   }
 
   TypeSpec define() {
-    return TypeSpec.classBuilder(refTrackingBuilder.perThreadFactoryClass)
+    return TypeSpec.classBuilder(model.perThreadFactoryClass())
         .addField(builder)
         .addMethod(builderMethod())
         .addMethod(constructorBuilder().addModifiers(PRIVATE).build())
@@ -43,12 +44,12 @@ final class PerThreadFactory {
   private MethodSpec builderMethod() {
     ParameterSpec input = ParameterSpec.builder(model.sourceClass(), "input").build();
     CodeBlock.Builder block = CodeBlock.builder()
-        .beginControlFlow("if (this.$N == null || this.$N.inUse)", builder, builder)
-        .addStatement("this.$N = new $T()", builder, refTrackingBuilder.refTrackingBuilderClass)
+        .beginControlFlow("if (this.$N == null || this.$N.$N != null)",
+            builder, builder, beanField)
+        .addStatement("this.$N = new $T()", builder, model.generatedClass)
         .endControlFlow()
         .addStatement("$T.$N(this.$N, $N)", model.generatedClass, initMethod, builder, input)
-        .addStatement("this.$N.$N = $L", builder, refTrackingBuilder.inUse, true)
-        .addStatement("return $N", builder);
+        .addStatement("return this.$N", builder);
     return MethodSpec.methodBuilder("builder")
         .addParameter(input)
         .addCode(block.build())
