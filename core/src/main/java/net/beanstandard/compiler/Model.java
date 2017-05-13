@@ -1,16 +1,17 @@
 package net.beanstandard.compiler;
 
-import static javax.lang.model.element.Modifier.PRIVATE;
-import static javax.lang.model.element.Modifier.PUBLIC;
-import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
-
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
-import java.util.List;
+
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
+import java.util.List;
+
+import static javax.lang.model.element.Modifier.PRIVATE;
+import static javax.lang.model.element.Modifier.PUBLIC;
+import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
 
 final class Model {
 
@@ -24,10 +25,11 @@ final class Model {
   final List<AccessorPair> accessorPairs;
 
   private Model(TypeName generatedClass,
-                TypeElement sourceClassElement) {
+                TypeElement sourceClassElement,
+                List<AccessorPair> accessorPairs) {
     this.generatedClass = generatedClass;
     this.sourceClassElement = sourceClassElement;
-    this.accessorPairs = MethodScanner.scan(sourceClassElement);
+    this.accessorPairs = accessorPairs;
   }
 
   static Model create(TypeElement sourceClassElement) {
@@ -40,8 +42,9 @@ final class Model {
           "Default constructor not found", sourceClassElement);
     }
     ClassName generatedClass = peer(TypeName.get(sourceClassElement.asType()));
+    List<AccessorPair> accessorPairs = MethodScanner.create(sourceClassElement).scan();
     return new Model(generatedClass,
-        sourceClassElement);
+        sourceClassElement, accessorPairs);
   }
 
   private static ClassName peer(TypeName type) {

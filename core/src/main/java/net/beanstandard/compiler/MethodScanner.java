@@ -1,21 +1,23 @@
 package net.beanstandard.compiler;
 
-import static java.util.stream.Collectors.groupingBy;
-import static net.beanstandard.compiler.Arity0.parameterlessMethods;
-import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
-
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
+
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeKind;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import static java.util.stream.Collectors.groupingBy;
+import static net.beanstandard.compiler.Arity0.parameterlessMethods;
+import static net.beanstandard.compiler.Arity1.singleParameterMethodsReturningVoid;
+import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
 
 final class MethodScanner {
 
@@ -26,14 +28,46 @@ final class MethodScanner {
   static final Pattern SETTER_PATTERN =
       Pattern.compile("^set[A-Z].*$");
 
-  static List<AccessorPair> scan(TypeElement sourceClassElement) {
-    checkSourceElement(sourceClassElement);
-    return getters(sourceClassElement,
-        setters(sourceClassElement));
+  private final TypeElement sourceClassElement;
+
+  private MethodScanner(TypeElement sourceClassElement) {
+    this.sourceClassElement = sourceClassElement;
   }
 
-  private static ExecutableElement matchingSetter(ExecutableElement getter,
-                                                  Map<SetterSignature, ExecutableElement> setters) {
+  static MethodScanner create(TypeElement sourceClassElement) {
+    checkSourceElement(sourceClassElement);
+    return new MethodScanner(sourceClassElement);
+  }
+
+  List<AccessorPair> scan() {
+    Map<SetterSignature, ExecutableElement> setters = setters();
+    List<AccessorPair> result = new ArrayList<>();
+    parameterlessMethods(sourceClassElement).stream()
+        .filter(m -> m.getParameters().isEmpty())
+        .filter(m -> m.getReturnType().getKind() != TypeKind.VOID)
+        .filter(m -> GETTER_PATTERN.matcher(m.getSimpleName().toString()).matches() ||
+            TypeKind.BOOLEAN == m.getReturnType().getKind() &&
+                IS_PATTERN.matcher(m.getSimpleName().toString()).matches())
+        .collect(groupingBy(m -> m.getSimpleName().toString()))
+        .forEach((name, executableElements) -> {
+          ExecutableElement getter = executableElements.get(0);
+          ExecutableElement matchingSetter = matchingSetter(getter, setters);
+          if (matchingSetter != null) {
+            result.add(AccessorPair.create(getter, matchingSetter));
+          } else {
+            TypeName type = TypeName.get(getter.getReturnType());
+            if (type instanceof ParameterizedTypeName &&
+                rawType(type).equals(TypeName.get(List.class))) {
+              result.add(AccessorPair.create(getter));
+            }
+          }
+        });
+    return result;
+  }
+
+  private static ExecutableElement matchingSetter(
+      ExecutableElement getter,
+      Map<SetterSignature, ExecutableElement> setters) {
     if (!getter.getParameters().isEmpty() ||
         getter.getReturnType().getKind() == TypeKind.VOID) {
       throw new AssertionError();
@@ -57,9 +91,9 @@ final class MethodScanner {
     return truncatedGetterName;
   }
 
-  private static Map<SetterSignature, ExecutableElement> setters(TypeElement sourceTypeElement) {
+  private Map<SetterSignature, ExecutableElement> setters() {
     Map<SetterSignature, ExecutableElement> result = new HashMap<>();
-    Arity1.singleParameterMethodsReturningVoid(sourceTypeElement).stream()
+    singleParameterMethodsReturningVoid(sourceClassElement).stream()
         .filter(m -> m.getParameters().size() == 1)
         .filter(m -> m.getReturnType().getKind() == TypeKind.VOID)
         .filter(m -> SETTER_PATTERN.matcher(m.getSimpleName().toString()).matches())
@@ -67,32 +101,6 @@ final class MethodScanner {
         .forEach((name, executableElements) -> executableElements.forEach(executableElement -> {
           result.put(SetterSignature.ofSetter(executableElement), executableElement);
         }));
-    return result;
-  }
-
-  private static List<AccessorPair> getters(TypeElement sourceTypeElement,
-                                            Map<SetterSignature, ExecutableElement> setters) {
-    List<AccessorPair> result = new ArrayList<>();
-    parameterlessMethods(sourceTypeElement).stream()
-        .filter(m -> m.getParameters().isEmpty())
-        .filter(m -> m.getReturnType().getKind() != TypeKind.VOID)
-        .filter(m -> GETTER_PATTERN.matcher(m.getSimpleName().toString()).matches() ||
-            TypeKind.BOOLEAN == m.getReturnType().getKind() &&
-                IS_PATTERN.matcher(m.getSimpleName().toString()).matches())
-        .collect(groupingBy(m -> m.getSimpleName().toString()))
-        .forEach((name, executableElements) -> {
-          ExecutableElement getter = executableElements.get(0);
-          ExecutableElement matchingSetter = matchingSetter(getter, setters);
-          if (matchingSetter != null) {
-            result.add(AccessorPair.create(getter, matchingSetter));
-          } else {
-            TypeName type = TypeName.get(getter.getReturnType());
-            if (type instanceof ParameterizedTypeName &&
-                rawType(type).equals(TypeName.get(List.class))) {
-              result.add(AccessorPair.create(getter));
-            }
-          }
-        });
     return result;
   }
 

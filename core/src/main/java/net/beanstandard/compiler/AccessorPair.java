@@ -1,5 +1,13 @@
 package net.beanstandard.compiler;
 
+import com.squareup.javapoet.ParameterizedTypeName;
+import com.squareup.javapoet.TypeName;
+
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.type.TypeKind;
+import java.util.List;
+import java.util.Optional;
+
 import static java.lang.Character.isLowerCase;
 import static java.lang.Character.toLowerCase;
 import static java.util.Objects.requireNonNull;
@@ -7,13 +15,6 @@ import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
 import static net.beanstandard.compiler.MethodScanner.GETTER_PATTERN;
 import static net.beanstandard.compiler.MethodScanner.IS_PATTERN;
 import static net.beanstandard.compiler.MethodScanner.SETTER_PATTERN;
-
-import com.squareup.javapoet.ParameterizedTypeName;
-import com.squareup.javapoet.TypeName;
-import java.util.List;
-import java.util.Optional;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.type.TypeKind;
 
 final class AccessorPair {
 
@@ -23,34 +24,53 @@ final class AccessorPair {
   final String propertyName;
   final TypeName propertyType;
 
-  private AccessorPair(ExecutableElement getter, ExecutableElement setter) {
-    if (!getterAssertions(getter)
-        || !setterAssertions(getter, setter)) {
+  private final OptionalInfo optionalInfo;
+
+  private AccessorPair(
+      ExecutableElement getter,
+      ExecutableElement setter) {
+    if (!getterAssertions(getter)) {
       throw new AssertionError();
     }
+    setterAssertions(getter, setter);
     this.getter = requireNonNull(getter);
     this.setter = setter;
     this.propertyName = propertyName(getter);
     this.propertyType = propertyType(getter);
+    this.optionalInfo = OptionalInfo.create(propertyType);
   }
 
-  private static boolean setterAssertions(ExecutableElement getter, ExecutableElement setter) {
+  private static void setterAssertions(
+      ExecutableElement getter, ExecutableElement setter) {
     TypeName getterType = TypeName.get(getter.getReturnType());
     if (setter == null) {
-      return getterType instanceof ParameterizedTypeName &&
-          rawType(getterType).equals(TypeName.get(List.class));
+      if (!(getterType instanceof ParameterizedTypeName &&
+          rawType(getterType).equals(TypeName.get(List.class)))) {
+        throw new AssertionError();
+      }
     } else {
-      return SETTER_PATTERN.matcher(setter.getSimpleName()).matches() &&
-          setter.getSimpleName().toString().substring(3).equals(
-              truncatedGetterName(getter)) &&
-          setter.getParameters().size() == 1 &&
-          setter.getReturnType().getKind() == TypeKind.VOID &&
-          setter.getParameters().get(0).asType().equals(
-              getter.getReturnType());
+      if (!SETTER_PATTERN.matcher(setter.getSimpleName()).matches()) {
+        throw new AssertionError();
+      }
+      if (!setter.getSimpleName().toString().substring(3).equals(
+          truncatedGetterName(getter))) {
+        throw new AssertionError();
+      }
+      if (setter.getParameters().size() != 1) {
+        throw new AssertionError();
+      }
+      if (setter.getReturnType().getKind() != TypeKind.VOID) {
+        throw new AssertionError();
+      }
+      if (!TypeName.get(setter.getParameters().get(0).asType()).equals(
+          TypeName.get(getter.getReturnType()))) {
+        throw new AssertionError();
+      }
     }
   }
 
-  static AccessorPair create(ExecutableElement getter, ExecutableElement setter) {
+  static AccessorPair create(
+      ExecutableElement getter, ExecutableElement setter) {
     return new AccessorPair(getter, setter);
   }
 
@@ -102,5 +122,9 @@ final class AccessorPair {
       return Optional.empty();
     }
     return Optional.of(setter.getSimpleName().toString());
+  }
+
+  Optional<OptionalInfo> optionalInfo() {
+    return Optional.ofNullable(optionalInfo);
   }
 }

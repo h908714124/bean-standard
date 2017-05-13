@@ -1,18 +1,19 @@
 package net.beanstandard.compiler;
 
-import static javax.lang.model.element.Modifier.FINAL;
-import static javax.lang.model.element.Modifier.PRIVATE;
-import static javax.lang.model.element.Modifier.STATIC;
-import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
-
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeSpec;
-import java.util.Arrays;
+
 import javax.annotation.Generated;
+import java.util.Arrays;
+
+import static javax.lang.model.element.Modifier.FINAL;
+import static javax.lang.model.element.Modifier.PRIVATE;
+import static javax.lang.model.element.Modifier.STATIC;
+import static net.beanstandard.compiler.BeanStandardProcessor.rawType;
 
 final class Analyser {
 
@@ -42,10 +43,13 @@ final class Analyser {
     builder.addType(PerThreadFactory.create(model, initMethod, beanField)
         .define());
     builder.addField(beanField);
-    for (AccessorPair parameter : model.accessorPairs) {
-      ParameterSpec p = ParameterSpec.builder(parameter.propertyType,
-          parameter.propertyName).build();
-      builder.addMethod(setterMethod(parameter, p));
+    for (AccessorPair accessorPair : model.accessorPairs) {
+      builder.addMethod(setterMethod(accessorPair));
+      accessorPair.optionalInfo()
+          .filter(OptionalInfo::isRegular)
+          .ifPresent(optionalInfo ->
+              builder.addMethod(optionalSetterMethod(accessorPair,
+                  optionalInfo)));
     }
     return builder.addModifiers(model.maybePublic())
         .addModifiers(FINAL)
@@ -58,11 +62,14 @@ final class Analyser {
         .build();
   }
 
-  private MethodSpec setterMethod(AccessorPair accessorPair, ParameterSpec p) {
+  private MethodSpec setterMethod(AccessorPair accessorPair) {
+    ParameterSpec p = ParameterSpec.builder(accessorPair.propertyType,
+        accessorPair.propertyName).build();
     CodeBlock.Builder block = CodeBlock.builder();
-    String setterName = accessorPair.setterName().orElse(null);
-    if (setterName != null) {
-      block.addStatement("this.$N.$L($N)", beanField, setterName, p);
+    if (accessorPair.setterName().isPresent()) {
+      accessorPair.setterName().ifPresent(setterName ->
+          block.addStatement("this.$N.$L($N)",
+              beanField, setterName, p));
     } else {
       block.addStatement("this.$N.$L().clear()", beanField,
           accessorPair.getterName())
@@ -78,13 +85,48 @@ final class Analyser {
         .build();
   }
 
+  private MethodSpec optionalSetterMethod(
+      AccessorPair accessorPair, OptionalInfo optionalInfo) {
+    String setterName = accessorPair.setterName()
+        .orElseThrow(AssertionError::new);
+    ParameterSpec p = ParameterSpec.builder(optionalInfo.wrapped,
+        accessorPair.propertyName).build();
+    CodeBlock.Builder block = CodeBlock.builder();
+    if (optionalInfo.isOptional()) {
+      block.addStatement("this.$N.$L($T.ofNullable($N))",
+          beanField, setterName, optionalInfo.wrapper, p);
+    } else {
+      block.addStatement("this.$N.$L($T.of($N))",
+          beanField, setterName, optionalInfo.wrapper, p);
+    }
+    return MethodSpec.methodBuilder(accessorPair.propertyName)
+        .addCode(block.build())
+        .addStatement("return this")
+        .addParameter(p)
+        .addModifiers(model.maybePublic())
+        .returns(model.generatedClass)
+        .build();
+  }
+
   private MethodSpec builderMethod() {
     ParameterSpec builder = ParameterSpec.builder(model.generatedClass, "builder")
         .build();
+    CodeBlock.Builder block = CodeBlock.builder()
+        .addStatement("$T $N = new $T()",
+            builder.type, builder, model.generatedClass)
+        .addStatement("$N.$N = new $T()",
+            builder, beanField, model.sourceClass());
+    for (AccessorPair accessorPair : model.accessorPairs) {
+      accessorPair.optionalInfo().ifPresent(optionalInfo -> {
+        String setterName = accessorPair.setterName()
+            .orElseThrow(AssertionError::new);
+        block.addStatement("$N.$N.$L($T.empty())",
+            builder, beanField, setterName, optionalInfo.wrapper);
+      });
+    }
     return MethodSpec.methodBuilder("builder")
         .addModifiers(STATIC)
-        .addStatement("$T $N = new $T()", builder.type, builder, model.generatedClass)
-        .addStatement("$N.$N = new $T()", builder, beanField, model.sourceClass())
+        .addCode(block.build())
         .addStatement("return $N", builder)
         .returns(model.generatedClass)
         .build();

@@ -3,8 +3,11 @@ package net.beanstandard.examples;
 import org.junit.Test;
 
 import java.lang.reflect.Modifier;
+import java.util.Optional;
+import java.util.OptionalInt;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertThat;
 
@@ -44,5 +47,17 @@ public class PublicPenguinTest {
     assertThat(Modifier.toString(PublicPenguin_Builder.class
         .getDeclaredConstructor().getModifiers()), containsString("private"));
 
+  }
+
+  @Test
+  public void testOptionalNull() {
+    String nobody = null;
+    PublicPenguin p0 = PublicPenguin_Builder.builder().foo("").bar(1).build();
+    PublicPenguin p1 = p0.toBuilder().friend("steven").build();
+    PublicPenguin p2 = p1.toBuilder().friend(nobody).build();
+    assertThat(p0.getFriend(), is(Optional.empty()));
+    assertThat(p1.getFriend(), is(Optional.of("steven")));
+    assertThat(p2.getFriend(), is(Optional.empty()));
+    assertThat(p2.getBar(), is(OptionalInt.of(1)));
   }
 }

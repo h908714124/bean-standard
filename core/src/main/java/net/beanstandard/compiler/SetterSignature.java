@@ -1,5 +1,7 @@
 package net.beanstandard.compiler;
 
+import com.squareup.javapoet.TypeName;
+
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeMirror;
 import java.util.Objects;
@@ -7,11 +9,11 @@ import java.util.Objects;
 final class SetterSignature {
 
   private final String setterName;
-  private final TypeMirror type;
+  private final TypeName type;
 
   private SetterSignature(String setterName, TypeMirror type) {
     this.setterName = setterName;
-    this.type = type;
+    this.type = TypeName.get(type);
   }
 
   static SetterSignature ofSetter(ExecutableElement setter) {
