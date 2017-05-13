@@ -5,7 +5,8 @@
 This project generates he builder pattern, specifically for classes that have 
 a <i>default constructor</i> and <i>accessor pairs</i>. These are known as JavaBeans or POJOs.
 The processor is supposed to generate roughly the same
-builder API as [auto-builder](https://github.com/h908714124/auto-builder).
+builder API as [auto-builder](https://github.com/h908714124/auto-builder) and
+[readable](https://github.com/h908714124/readable).
 
 Builders for beans can be a useful tool in defensive programming.
 For example, they can simply be used to make shallow copies.
@@ -32,7 +33,7 @@ A builder instance can be obtained from one of the three generated static method
 
 * `Animal_Builders.builder()` to obtain an empty builder.
 * `Animal_Builders.builder(Animal input)` for a builder that's initialized from `input`.
-* `AnimalBuilders.threadLocalFactory()` for a cached builder.
+* `AnimalBuilders.perThreadFactory()` for a cached builder.
 
 The builder will not modify the object that's passed into `Animal_Builders.builder(Animal input)`.
 If you use the factory, you have to wrap it in a `ThreadLocal`; see
