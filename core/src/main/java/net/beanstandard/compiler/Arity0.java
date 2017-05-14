@@ -23,29 +23,28 @@ final class Arity0 {
 
   static List<ExecutableElement> parameterlessMethods(
       TypeElement type) {
-    PackageElement packageElement = getPackage(type);
+    PackageElement ourPackage = getPackage(type);
     Map<String, ExecutableElement> methods = new LinkedHashMap<>();
-    addFromSuperclass(type, methods, packageElement);
+    addFromSuperclass(type, methods, ourPackage);
     return new ArrayList<>(methods.values());
   }
 
   private static void addFromSuperclass(
       TypeElement type,
       Map<String, ExecutableElement> methods,
-      PackageElement packageElement) {
-    addEnclosedMethods(type, methods, packageElement);
+      PackageElement ourPackage) {
+    addEnclosedMethods(type, methods, ourPackage);
     TypeMirror superclass = type.getSuperclass();
     if (superclass.getKind() != TypeKind.DECLARED) {
       return;
     }
-    addFromSuperclass(
-        asTypeElement(superclass), methods, packageElement);
+    addFromSuperclass(asTypeElement(superclass), methods, ourPackage);
   }
 
   private static void addEnclosedMethods(
       TypeElement type,
       Map<String, ExecutableElement> methods,
-      PackageElement packageElement) {
+      PackageElement ourPackage) {
     methodsIn(type.getEnclosedElements())
         .stream()
         .filter(method -> method.getParameters().isEmpty())
@@ -54,9 +53,8 @@ final class Arity0 {
         .filter(method -> !method.getModifiers().contains(STATIC))
         .filter(method -> !method.getModifiers().contains(PRIVATE))
         .filter(method -> method.getModifiers().contains(PUBLIC) ||
-            getPackage(method).equals(packageElement))
-        .forEach(method ->
-            methods.computeIfAbsent(method.getSimpleName().toString(),
-                __ -> method));
+            getPackage(method).equals(ourPackage))
+        .forEach(method -> methods.putIfAbsent(
+            method.getSimpleName().toString(), method));
   }
 }

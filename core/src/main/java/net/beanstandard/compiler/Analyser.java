@@ -151,10 +151,8 @@ final class Analyser {
     ParameterSpec builder = ParameterSpec.builder(model.generatedClass, "builder").build();
     ParameterSpec input = ParameterSpec.builder(model.sourceClass(), "input").build();
     CodeBlock.Builder block = CodeBlock.builder();
-    block.beginControlFlow("if ($N.$N == null)", builder, beanField)
-        .addStatement("$N.$N = new $T()", builder, beanField,
-            model.sourceClass())
-        .endControlFlow();
+    block.addStatement("$N.$N = new $T()", builder, beanField,
+        model.sourceClass());
     for (AccessorPair accessorPair : model.accessorPairs) {
       block.addStatement("$N.$N($N.$L())", builder, accessorPair.propertyName,
           input, accessorPair.getterName());

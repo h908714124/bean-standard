@@ -23,8 +23,13 @@ you can now go ahead and obtain a builder instance from the generated class `*_B
 class Animal {
   private String name;
 
-  String getName();
-  void setName(String name);
+  String getName() {
+    return name;
+  }
+
+  void setName(String name) {
+    this.name = name;
+  }
 }
 ````
 
@@ -36,8 +41,66 @@ A builder instance can be obtained from one of the three generated static method
 * `AnimalBuilders.perThreadFactory()` for a cached builder.
 
 The builder will not modify the object that's passed into `Animal_Builders.builder(Animal input)`.
+
+#### Example: Adding a simple toBuilder method
+
+````java
+@BeanStandard
+class Animal {
+  private String name;
+
+  String getName() {
+    return name;
+  }
+
+  void setName(String name) {
+    this.name = name;
+  }
+
+  Animal_Builder toBuilder() {
+    return Animal_Builder.builder(this);
+  }
+}
+````
+
 If you use the factory, you have to wrap it in a `ThreadLocal`; see
 [auto-builder's notes on caching](https://github.com/h908714124/auto-builder#caching).
+
+#### Example: Adding a caching toBuilder method
+
+````java
+@BeanStandard
+class Animal {
+  private static final ThreadLocal<Animal_Builder.PerThreadFactory> FACTORY =
+      ThreadLocal.withInitial(Animal_Builder::perThreadFactory);
+
+  private String name;
+
+  String getName() {
+    return name;
+  }
+
+  void setName(String name) {
+    this.name = name;
+  }
+
+  Animal_Builder toBuilder() {
+    return FACTORY.get().builder(this);
+  }
+}
+````
+
+### FAQ
+
+#### What if there's a setter with no corresponding getter?
+
+It will be ignored.
+
+#### What if there's a getter with no corresponding setter?
+
+It will be ignored, unless it returns `java.util.List<X>`, where `X` is some type.
+In this case, the builder will generate code to update this list,
+by assuming that it is <em>mutable</em> and <em>never null</em>.
 
 ### It's maven time
 
