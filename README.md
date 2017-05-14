@@ -45,7 +45,7 @@ If you use the factory, you have to wrap it in a `ThreadLocal`; see
 <dependency>
   <groupId>com.github.h908714124</groupId>
   <artifactId>bean-standard</artifactId>
-  <version>1.3</version>
+  <version>1.4</version>
   <scope>provided</scope>
 </dependency>
 ````
