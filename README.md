@@ -108,7 +108,7 @@ by assuming that it is <em>mutable</em> and <em>never null</em>.
 <dependency>
   <groupId>com.github.h908714124</groupId>
   <artifactId>bean-standard</artifactId>
-  <version>1.4</version>
+  <version>1.5</version>
   <scope>provided</scope>
 </dependency>
 ````
